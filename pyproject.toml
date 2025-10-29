@@ -34,25 +34,31 @@ dependencies = [
     # "tensorboard",
     # "aim",
 
-    # --------- linters --------- #
-    "pre-commit (>=4.3.0,<5.0.0)",      # hooks for applying linters on commit
-    "black (>=25.1.0,<26.0.0)",         # code formatting
-    "isort (>=6.0.1,<7.0.0)",           # import sorting
-    "flake8 (>=7.3.0,<8.0.0)",          # code analysis
-    "nbstripout (>=0.8.1,<0.9.0)",      # remove output from jupyter notebooks
-
     # --------- others --------- #
     "pyrootutils (>=1.0.4,<2.0.0)",     # standardizing the project root setup
     "python-dotenv (>=1.1.1,<2.0.0)",   # loading env variables from .env file
     "rich (>=14.1.0,<15.0.0)",          # beautiful text formatting in terminal
+    "tabulate (>=0.9.0,<0.10.0)",       # show statistics as markdown
+    "plotext (>=5.3.2,<6.0.0)",         # show statistics as plots
+]
+
+[dependency-groups]
+dev = [
+
+        # --------- testing --------- #
     "pytest (>=8.4.1,<9.0.0)",          # tests
     "pytest-cov (>=6.2.1,<7.0.0)",      # test coverage
     "pytest-xdist (>=3.8.0,<4.0.0)",    # use more cores for tests
     "sh (>=2.2.2,<3.0.0)",              # for running bash commands in some tests
     "pudb (>=2025.1,<2026.0)",          # debugger
-    "tabulate (>=0.9.0,<0.10.0)",       # show statistics as markdown
-    "plotext (>=5.3.2,<6.0.0)",         # show statistics as plots
+        # --------- linters --------- #
+    "pre-commit (>=4.3.0,<5.0.0)",      # hooks for applying linters on commit
+    "black (>=25.1.0,<26.0.0)",         # code formatting
+    "isort (>=6.0.1,<7.0.0)",           # import sorting
+    "flake8 (>=7.3.0,<8.0.0)",          # code analysis
+    "nbstripout (>=0.8.1,<0.9.0)",      # remove output from jupyter notebooks
 ]
+
 
 [project.urls]
 homepage = "https://your-project.com"
