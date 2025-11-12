@@ -3,15 +3,15 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project]
-name = "your-project"
+name = "pie-st-am"
 version = "0.0.1"
-description = "Describe Your Cool Project"
+description = "PytorchIE ST-AM Model"
 authors = [
-    {name = "Your Name", email = "you@example.com"}
+    {name = "Danylo Mysak", email = "rainbowrivey@hotmail.com"}
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     # --------- python-ie --------- #
     "pytorch-ie (>=0.33.0,<0.34.0)",
@@ -57,6 +57,11 @@ dev = [
     "isort (>=6.0.1,<7.0.0)",           # import sorting
     "flake8 (>=7.3.0,<8.0.0)",          # code analysis
     "nbstripout (>=0.8.1,<0.9.0)",      # remove output from jupyter notebooks
+    # Notebooks
+    "jupyter (>=1.1.1,<2.0.0)",
+    "ipykernel (>=7.1.0,<8.0.0)",
+    "ipywidgets (>=8.1.8,<9.0.0)",
+    "pip (>=25.3,<26.0)",
 ]
 
 
