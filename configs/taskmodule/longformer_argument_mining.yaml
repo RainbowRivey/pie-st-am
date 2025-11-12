@@ -1,0 +1,3 @@
+_target_: src.taskmodules.AMTaskModule
+
+tokenizer_name_or_path: allenai/longformer-base-4096

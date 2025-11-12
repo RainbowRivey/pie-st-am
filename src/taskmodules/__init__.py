@@ -1,1 +1,2 @@
+from .longformer_argument_mining import AMTaskModule
 from .transformer_token_classification import MyTokenClassificationTaskModule
