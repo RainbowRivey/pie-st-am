@@ -9,14 +9,20 @@ from pie_documents.annotations import BinaryRelation, LabeledSpan, Span
 from pytorch_ie.documents import TextDocumentWithLabeledSpansBinaryRelationsAndLabeledPartitions
 from torch import allclose, load, save, tensor
 
-from src.taskmodules import AMTaskModule
+from src.taskmodules import SpansAndBinaryRelationsTaskModule
 from src.taskmodules.longformer_argument_mining import (
     ModelTargetType,
     TargetEncodingType,
     TaskEncodingType,
     TaskOutputType,
 )
-from tests import FIXTURES_ROOT
+from tests import CREATE_FIXTURE_DATA, FIXTURES_ROOT
+
+
+def test_do_not_create_fixture_data():
+    assert not CREATE_FIXTURE_DATA
+    # TODO find better place
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +41,11 @@ def document(documents):
     return documents[0]
 
 
-@pytest.fixture(scope="module")
-def taskmodule(documents):
-    taskmodule = AMTaskModule(tokenizer_name_or_path="allenai/longformer-base-4096")
+@pytest.fixture(scope="module", params=[False, True])
+def taskmodule(documents, request):
+    taskmodule = SpansAndBinaryRelationsTaskModule(
+        tokenizer_name_or_path="allenai/longformer-base-4096", use_gold_spans=request.param
+    )
     taskmodule.prepare(documents)
     return taskmodule
 
@@ -188,50 +196,50 @@ def test_create_annotations_from_output(taskmodule, task_output, task_encoding):
     )
 
 
-def test_collate(taskmodule, task_encoding, save_batch_data=False):
-    batch, targets = taskmodule.collate([task_encoding, task_encoding])
+def test_collate(taskmodule, task_encoding):
+    input, targets = taskmodule.collate([task_encoding, task_encoding])
     assert targets is None
 
-    batch_path = FIXTURES_ROOT / "taskmodules/batch.pt"
-    batch_readable = FIXTURES_ROOT / "taskmodules/batch.json"
+    input_path = FIXTURES_ROOT / f"taskmodules/input_{taskmodule.use_gold_spans}.pt"
+    input_readable = FIXTURES_ROOT / f"taskmodules/input_{taskmodule.use_gold_spans}.json"
 
-    if save_batch_data:
-        save(batch, batch_path)
-        serializable_batch = {k: v.cpu().numpy().tolist() for k, v in batch.items()}
+    if CREATE_FIXTURE_DATA:
+        save(input, input_path)
+        serializable_input = {k: v.cpu().numpy().tolist() for k, v in input.items()}
         # Save readable json to inspect
-        with open(batch_readable, "w+") as f:
-            json.dump(serializable_batch, f, indent=2)
+        with open(input_readable, "w+") as f:
+            json.dump(serializable_input, f, indent=2)
 
-    batch_expected = load(batch_path)
+    input_expected = load(input_path)
 
 
-def test_collate_with_targets(taskmodule, task_encoding, save_batch_data=False):
+def test_collate_with_targets(taskmodule, task_encoding):
     encodings_with_targets = taskmodule.encode_targets(
         task_encodings=[task_encoding, task_encoding]
     )
-    batch, targets = taskmodule.collate(encodings_with_targets)
+    inputs, targets = taskmodule.collate(encodings_with_targets)
 
-    batch_path = FIXTURES_ROOT / "taskmodules/batch.pt"
-    targets_path = FIXTURES_ROOT / "taskmodules/targets.pt"
-    batch_readable = FIXTURES_ROOT / "taskmodules/batch.json"
-    targets_readable = FIXTURES_ROOT / "taskmodules/targets.json"
+    input_path = FIXTURES_ROOT / f"taskmodules/input_{taskmodule.use_gold_spans}.pt"
+    input_readable = FIXTURES_ROOT / f"taskmodules/input_{taskmodule.use_gold_spans}.json"
+    targets_path = FIXTURES_ROOT / f"taskmodules/targets_{taskmodule.use_gold_spans}.pt"
+    targets_readable = FIXTURES_ROOT / f"taskmodules/targets_{taskmodule.use_gold_spans}.json"
 
-    if save_batch_data:
-        save(batch, batch_path)
+    if CREATE_FIXTURE_DATA:
+        save(inputs, input_path)
         save(targets, targets_path)
-        serializable_batch = {k: v.cpu().numpy().tolist() for k, v in batch.items()}
+        serializable_input = {k: v.cpu().numpy().tolist() for k, v in inputs.items()}
         # Save readable jsons to inspect
-        with open(batch_readable, "w+") as f:
-            json.dump(serializable_batch, f, indent=2)
+        with open(input_readable, "w+") as f:
+            json.dump(serializable_input, f, indent=2)
         serializable_targets = {k: v.cpu().numpy().tolist() for k, v in targets.items()}
         with open(targets_readable, "w+") as f:
             json.dump(serializable_targets, f, indent=2)
 
-    batch_expected = load(batch_path)
+    batch_expected = load(input_path)
     targets_expected = load(targets_path)
 
-    for k in batch.keys():
-        assert allclose(batch[k], batch_expected[k])
+    for k in inputs.keys():
+        assert allclose(inputs[k], batch_expected[k])
     for k in targets.keys():
         assert allclose(targets[k], targets_expected[k])
 
@@ -317,6 +325,7 @@ def test_unbatch(taskmodule, model_output):
 
 
 def test_encode_decode(taskmodule, document):
+    document = document.copy()
     encodings = taskmodule.encode(document, encode_target=True)
     targets = [encoding.targets for encoding in encodings]
     decoded = taskmodule.decode(encodings, targets, inplace=True)
@@ -370,7 +379,7 @@ def test_encode_decode(taskmodule, document):
 
 
 def test_long_document_encoding():
-    taskmodule = AMTaskModule(
+    taskmodule = SpansAndBinaryRelationsTaskModule(
         tokenizer_name_or_path="allenai/longformer-base-4096",
         tokenize_kwargs={"max_length": 10, "stride": 1},
     )
@@ -399,7 +408,7 @@ def test_long_document_encoding():
 
 
 def test_encode_decode_long_document():
-    taskmodule = AMTaskModule(
+    taskmodule = SpansAndBinaryRelationsTaskModule(
         tokenizer_name_or_path="allenai/longformer-base-4096",
         tokenize_kwargs={"max_length": 10, "stride": 1},
     )

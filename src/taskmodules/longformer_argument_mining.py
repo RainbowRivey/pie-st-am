@@ -132,7 +132,7 @@ logger = logging.getLogger(__name__)
 
 
 @TaskModule.register()
-class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
+class SpansAndBinaryRelationsTaskModule(TaskModuleType, RelationStatisticsMixin):
     """TaskModule for End to End Argument Mining."""
 
     PREPARED_ATTRIBUTES = ["relation_labels", "entity_labels"]
@@ -145,7 +145,7 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
         tokenize_kwargs: Optional[Dict[str, Any]] = None,
         relation_labels: Optional[List[str]] = None,
         entity_labels: Optional[List[str]] = None,
-        use_gold_labeled_spans: bool = False,
+        use_gold_spans: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -167,7 +167,7 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
         self.relation_labels = relation_labels
         self.entity_labels = entity_labels
         self.none_label = none_label
-        self.use_gold_labeled_spans = use_gold_labeled_spans
+        self.use_gold_spans = use_gold_spans
 
     def _prepare(self, documents: Sequence[DocumentType]) -> None:
         entity_labels: Set[str] = set()
@@ -232,9 +232,11 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
         for tokenized_doc in tokenized_docs:
             inputs = tokenized_doc.metadata["tokenizer_encoding"]
             metadata: dict = {"tokenized_document": tokenized_doc}
-            if self.use_gold_labeled_spans:
+            if self.use_gold_spans:
                 encoded_spans, span_to_id = self.encode_spans(tokenized_doc)
-                inputs.update(encoded_spans)
+                # inputs.update(encoded_spans)
+                for k, v in encoded_spans.items():
+                    setattr(inputs, k, v)
                 metadata["span_to_id"] = span_to_id
 
             task_encodings.append(
@@ -257,12 +259,9 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
             "rel_label": [],
         }
 
-        if self.use_gold_labeled_spans:
-            span_to_id = task_encoding.metadata["span_to_id"]
-        else:
-            encoded_spans, span_to_id = self.encode_spans(tokenized_document)
-            targets.update(encoded_spans)
-            task_encoding.metadata["span_to_id"] = span_to_id
+        encoded_spans, span_to_id = self.encode_spans(tokenized_document)
+        targets.update(encoded_spans)
+        task_encoding.metadata["span_to_id"] = span_to_id
 
         for binary_relation in tokenized_document.binary_relations:
             targets["rel_head"].append(span_to_id[binary_relation.head])
@@ -288,30 +287,6 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
 
     def unbatch_output(self, model_output: ModelTargetType) -> Sequence[TaskOutputType]:
         unbatched_output = []
-        # target == {
-        # assert allclose(targets['rel_head'],    tensor([[2], [2]]))
-        # assert allclose(targets['rel_tail'],    tensor([[1], [1]]))
-        # assert allclose(targets['rel_label'],   tensor([[0], [0]]))
-        # assert allclose(targets['span_start'],  tensor([[ 1, 26, 41], [ 1, 26, 41]]))
-        # assert allclose(targets['span_end'],    tensor([[26, 41, 76], [26, 41, 76]]))
-        # assert allclose(targets['span_label'],  tensor([[0, 2, 1], [0, 2, 1]]))
-        # }
-        # --->
-        # task_output == {
-        # span_start: Sequence[int]
-        # span_end: Sequence[int]
-        # span_probability: Sequence[float]
-
-        # span_label: Sequence[int]
-        # span_label_probability: Sequence[float]
-
-        # rel_head: Sequence[int]
-        # rel_tail: Sequence[int]
-        # rel_probability: Sequence[float]
-
-        # rel_label: Sequence[int]
-        # rel_label_probability: Sequence[float]
-        # }
         outputs = {}
         for key, value in model_output.items():
             outputs[key] = value.detach().cpu().tolist()
@@ -342,28 +317,28 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
             ]
             input_ids_list.append(tokenizer_encoding.ids)
             attention_mask_list.append(tokenizer_encoding.attention_mask)
-            if self.use_gold_labeled_spans:
-                span_lists["span_start"].append(task_encoding.inputs.span_start)
-                span_lists["span_end"].append(task_encoding.inputs.span_end)
-                span_lists["span_label"].append(task_encoding.inputs.span_label)
+            # if self.use_gold_spans:
+            # span_lists["span_start"].append(task_encoding.inputs.span_start)
+            # span_lists["span_end"].append(task_encoding.inputs.span_end)
+            # span_lists["span_label"].append(task_encoding.inputs.span_label)
             if task_encoding.has_targets:
                 enc_targets = task_encoding.targets
-                if not self.use_gold_labeled_spans:
-                    span_lists["span_start"].append(enc_targets.span_start)
-                    span_lists["span_end"].append(enc_targets.span_end)
-                    span_lists["span_label"].append(enc_targets.span_label)
+                # if not self.use_gold_spans:
+                span_lists["span_start"].append(enc_targets.span_start)
+                span_lists["span_end"].append(enc_targets.span_end)
+                span_lists["span_label"].append(enc_targets.span_label)
                 rel_lists["rel_head"].append(enc_targets.rel_head)
                 rel_lists["rel_tail"].append(enc_targets.rel_tail)
                 rel_lists["rel_label"].append(enc_targets.rel_label)
 
         targets = None
 
-        if self.use_gold_labeled_spans or construct_targets:
-            padded_span_encodings = self.pad(
-                span_lists,
-                pad_ids={k: -1 for k in span_lists},
-                return_tensors=True,
-            )
+        # if self.use_gold_spans or construct_targets:
+        padded_span_encodings = self.pad(
+            span_lists,
+            pad_ids={k: -1 for k in span_lists},
+            return_tensors=True,
+        )
 
         padded_model_input = self.tokenizer.pad(
             {
@@ -379,14 +354,14 @@ class AMTaskModule(TaskModuleType, RelationStatisticsMixin):
             "attention_mask": padded_model_input["attention_mask"],
         }
 
-        if self.use_gold_labeled_spans:
-            model_input.update(padded_span_encodings)
+        # if self.use_gold_spans:
+        model_input.update(padded_span_encodings)
 
         if construct_targets:
             targets = self.pad(rel_lists, pad_ids={k: -1 for k in rel_lists}, return_tensors=True)
 
-            if not self.use_gold_labeled_spans:
-                targets.update(padded_span_encodings)
+            # if not self.use_gold_spans:
+            targets.update(padded_span_encodings)
 
         return (model_input, targets)
 

@@ -6,6 +6,7 @@ from pytorch_ie.core import Document
 
 TESTS_ROOT = pathlib.Path(__file__).parent
 FIXTURES_ROOT = TESTS_ROOT / "fixtures"
+CREATE_FIXTURE_DATA = False
 
 T_doc = TypeVar("T_doc", bound=Document)
 
