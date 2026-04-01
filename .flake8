@@ -13,6 +13,7 @@ ignore =
     E501
     # multiple statements on one line
     E704
+
 exclude =
     .git
     __pycache__
